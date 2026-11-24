@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GymSync">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>GymSync</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  html,body{background:#000;color:#fff;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  body{padding-top:env(safe-area-inset-top)}
+  input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .btn:active{transform:scale(.95)}
+  input:disabled,.btn:disabled{opacity:.4}
+  .set-done{background:#052e16;border-color:#22c55e}
+</style>
+</head>
+<body class="min-h-screen font-sans select-none">
+
+<header class="sticky top-0 z-30 bg-black border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
+  <div>
+    <h1 class="text-xl font-extrabold tracking-tight text-lime-400">GymSync</h1>
+    <p id="syncStatus" class="text-xs text-zinc-400">Offline</p>
+  </div>
+  <div id="timer" class="text-3xl font-mono font-bold text-white tabular-nums">00:00:00</div>
+</header>
+
+<main class="px-3 pt-3 pb-32 max-w-xl mx-auto">
+  <!-- TREINO -->
+  <section id="tab-treino">
+    <div id="dayTabs" class="grid grid-cols-4 gap-2 mb-3"></div>
+    <div class="mb-3">
+      <h2 id="dayTitle" class="text-lg font-bold"></h2>
+    </div>
+    <div id="exercises" class="space-y-3"></div>
+    <div class="mt-4">
+      <button id="sessionBtn" class="btn w-full py-4 rounded-xl text-lg font-extrabold bg-lime-400 text-black"></button>
+      <button id="cancelBtn" class="btn hidden w-full mt-2 py-3 rounded-xl text-sm font-bold bg-zinc-900 text-red-400 border border-zinc-800">Cancelar sessão</button>
+    </div>
+  </section>
+
+  <!-- PROGRESSO -->
+  <section id="tab-progresso" class="hidden">
+    <select id="exSelect" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-base font-semibold mb-3"></select>
+    <div id="progEmpty" class="text-zinc-400 text-center py-10 hidden">Nenhum treino finalizado ainda.</div>
+    <div id="progBody">
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+          <p class="text-xs text-zinc-400 uppercase font-bold">Maior carga (PR)</p>
+          <p id="prLoad" class="text-2xl font-extrabold text-lime-400">–</p>
+        </div>
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+          <p class="text-xs text-zinc-400 uppercase font-bold">Maior volume / sessão</p>
+          <p id="prVol" class="text-2xl font-extrabold text-amber-400">–</p>
+        </div>
+      </div>
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3"><canvas id="chart" height="260"></canvas></div>
+    </div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="tab-ajustes" class="hidden space-y-3">
+    <h2 class="text-lg font-bold">Sincronização (GitHub Gist)</h2>
+    <label class="block text-sm text-zinc-400">Personal Access Token (escopo: gist)
+      <input id="token" type="password" autocomplete="off" class="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-white" placeholder="ghp_...">
+    </label>
+    <label class="block text-sm text-zinc-400">Gist ID (vazio = criar novo ao sincronizar)
+      <input id="gistId" type="text" autocomplete="off" class="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-white" placeholder="id do gist">
+    </label>
+    <button id="saveSettings" class="btn w-full py-3 rounded-xl font-bold bg-zinc-800 border border-zinc-600">Salvar ajustes</button>
+    <button id="syncNow" class="btn w-full py-3 rounded-xl font-bold bg-lime-400 text-black">Sincronizar agora</button>
+    <p id="syncMsg" class="text-sm text-zinc-300"></p>
+    <p class="text-xs text-zinc-500">Os dados ficam no localStorage e são mesclados com o Gist (arquivo gymsync.json). O sync automático ocorre ao finalizar o treino.</p>
+    <hr class="border-zinc-800">
+    <button id="exportBtn" class="btn w-full py-3 rounded-xl font-bold bg-zinc-900 border border-zinc-700">Exportar backup (JSON)</button>
+  </section>
+</main>
+
+<nav class="fixed bottom-0 inset-x-0 z-30 bg-black border-t border-zinc-800 grid grid-cols-3" style="padding-bottom:env(safe-area-inset-bottom)">
+  <button data-tab="treino" class="navbtn py-4 font-bold text-sm">🏋️ Treino</button>
+  <button data-tab="progresso" class="navbtn py-4 font-bold text-sm">📈 Progresso</button>
+  <button data-tab="ajustes" class="navbtn py-4 font-bold text-sm">⚙️ Ajustes</button>
+</nav>
+
+<!-- MODAL -->
+<div id="modal" class="fixed inset-0 z-50 hidden bg-black/80 items-end sm:items-center justify-center">
+  <div id="modalBox" class="w-full max-w-md bg-zinc-950 border border-zinc-700 rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] overflow-y-auto"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
