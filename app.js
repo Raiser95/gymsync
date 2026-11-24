@@ -6,40 +6,54 @@ const GIST_FILE = 'gymsync.json';
 const $ = id => document.getElementById(id);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-const ex = (name, sets, reps, alternatives) => ({ id: uid(), name, sets, reps, alternatives });
+// Incremente ao alterar a ficha padrão: força a atualização da rotina salva no aparelho.
+const ROUTINE_VERSION = 2;
+const FAIL = '6-8 (Falha)';
+const ex = (name, sets, reps, rest, alternatives) => ({ id: uid(), name, sets, reps, rest, alternatives });
 function defaultRoutine() {
   return {
     A: { label: 'A', title: 'Peito e Tríceps', exercises: [
-      ex('Supino Reto Barra', 4, '8-12', ['Supino Reto Halteres', 'Supino Máquina']),
-      ex('Supino Inclinado Halteres', 3, '8-12', ['Supino Inclinado Barra', 'Supino Inclinado Máquina']),
-      ex('Crucifixo Máquina (Peck Deck)', 3, '10-15', ['Crucifixo Halteres', 'Crossover na Polia']),
-      ex('Tríceps Pulley Corda', 3, '10-12', ['Tríceps Pulley Barra', 'Tríceps Francês Halter']),
-      ex('Tríceps Testa', 3, '8-12', ['Tríceps Testa Polia', 'Mergulho no Banco'])] },
+      ex('Supino Inclinado na Máquina', 2, FAIL, '2min', ['Supino Inclinado com Halteres', 'Supino Reto na Máquina']),
+      ex('Crucifixo Unilateral na Polia', 2, FAIL, '90s', ['Peck Deck (Voador)', 'Cross Over Bilateral Polia Média']),
+      ex('Tríceps na Polia Alta (Barra Reta ou V)', 2, FAIL, '90s', ['Tríceps Máquina (Mergulho)', 'Tríceps Corda na Polia']),
+      ex('Tríceps Unilateral na Polia (Puxador D)', 2, FAIL, '90s', ['Tríceps Francês na Polia (Corda)', 'Tríceps Coice na Polia'])] },
     B: { label: 'B', title: 'Costas e Bíceps', exercises: [
-      ex('Puxada Frontal', 4, '8-12', ['Barra Fixa Assistida', 'Puxada Triângulo']),
-      ex('Remada Curvada Barra', 3, '8-12', ['Remada Curvada Halteres', 'Remada Cavalinho']),
-      ex('Remada Baixa Triângulo', 3, '10-12', ['Remada Máquina', 'Remada Unilateral Halter']),
-      ex('Rosca Scott Máquina', 3, '8-12', ['Rosca Scott na Polia', 'Rosca Direta Halteres']),
-      ex('Rosca Martelo', 3, '10-12', ['Rosca Martelo Corda Polia', 'Rosca Alternada'])] },
+      ex('Puxada Alta Pegada Neutra', 2, FAIL, '2min', ['Puxada Frontal Aberta', 'Pulldown na Polia Alta']),
+      ex('Remada Unilateral na Polia Baixa', 2, FAIL, '90s', ['Remada Máquina Unilateral', 'Remada Serrote com Halter']),
+      ex('Rosca Direta na Polia Baixa (Barra W ou Reta)', 2, FAIL, '90s', ['Rosca Scott na Máquina', 'Rosca Direta com Barra W']),
+      ex('Rosca Martelo na Polia (Corda)', 2, FAIL, '90s', ['Rosca Martelo com Halteres', 'Rosca Concentrada na Polia'])] },
     C: { label: 'C', title: 'Pernas Completo', exercises: [
-      ex('Agachamento Livre', 4, '8-12', ['Agachamento Smith', 'Hack Squat']),
-      ex('Leg Press 45°', 4, '10-12', ['Leg Press Horizontal', 'Agachamento Sumô']),
-      ex('Cadeira Extensora', 3, '12-15', ['Extensora Unilateral', 'Sissy Squat']),
-      ex('Mesa Flexora', 3, '10-12', ['Cadeira Flexora', 'Stiff Halteres']),
-      ex('Panturrilha em Pé', 4, '12-20', ['Panturrilha Sentado', 'Panturrilha no Leg Press'])] },
+      ex('Agachamento Livre', 4, '8-12', '2min', ['Agachamento Smith', 'Hack Squat']),
+      ex('Leg Press 45°', 4, '10-12', '2min', ['Leg Press Horizontal', 'Agachamento Sumô']),
+      ex('Cadeira Extensora', 3, '12-15', '90s', ['Extensora Unilateral', 'Sissy Squat']),
+      ex('Mesa Flexora', 3, '10-12', '90s', ['Cadeira Flexora', 'Stiff Halteres']),
+      ex('Panturrilha em Pé', 4, '12-20', '60s', ['Panturrilha Sentado', 'Panturrilha no Leg Press'])] },
     D: { label: 'D', title: 'Ombros e Abdômen', exercises: [
-      ex('Desenvolvimento Halteres', 4, '8-12', ['Desenvolvimento Máquina', 'Desenvolvimento Barra']),
-      ex('Elevação Lateral', 4, '12-15', ['Elevação Lateral Polia', 'Elevação Lateral Máquina']),
-      ex('Elevação Frontal', 3, '10-12', ['Elevação Frontal Polia', 'Elevação Frontal Anilha']),
-      ex('Abdominal Supra', 3, '15-20', ['Abdominal Máquina', 'Abdominal Declinado']),
-      ex('Prancha', 3, '30-60s', ['Prancha Lateral', 'Elevação de Pernas'])] }
+      ex('Desenvolvimento Halteres', 4, '8-12', '2min', ['Desenvolvimento Máquina', 'Desenvolvimento Barra']),
+      ex('Elevação Lateral', 4, '12-15', '60s', ['Elevação Lateral Polia', 'Elevação Lateral Máquina']),
+      ex('Elevação Frontal', 3, '10-12', '60s', ['Elevação Frontal Polia', 'Elevação Frontal Anilha']),
+      ex('Abdominal Supra', 3, '15-20', '60s', ['Abdominal Máquina', 'Abdominal Declinado']),
+      ex('Prancha', 3, '30-60s', '60s', ['Prancha Lateral', 'Elevação de Pernas'])] }
   };
 }
-
 let state = load();
 function load() {
-  try { const d = JSON.parse(localStorage.getItem(LS_KEY)); if (d && d.routine) return d; } catch (e) {}
-  return { routine: defaultRoutine(), history: [], settings: { token: '', gistId: '' }, updatedAt: 0 };
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY));
+    if (d && d.routine) {
+      d.history = d.history || [];
+      d.settings = d.settings || { token: '', gistId: '' };
+      // Migração: ficha antiga -> nova ficha padrão (histórico e ajustes são preservados)
+      if ((d.routineVersion || 1) < ROUTINE_VERSION) {
+        d.routine = defaultRoutine();
+        d.routineVersion = ROUTINE_VERSION;
+        d.updatedAt = Date.now();
+        localStorage.setItem(LS_KEY, JSON.stringify(d));
+      }
+      return d;
+    }
+  } catch (e) {}
+  return { routine: defaultRoutine(), routineVersion: ROUTINE_VERSION, history: [], settings: { token: '', gistId: '' }, updatedAt: 0 };
 }
 function save(touch = true) {
   if (touch) state.updatedAt = Date.now();
@@ -116,7 +130,7 @@ function renderTreino() {
   const day = state.routine[currentDay];
   $('dayTitle').textContent = `Treino ${currentDay} — ${day.title}`;
   const active = session && session.day === currentDay;
-  const list = active ? session.exercises : day.exercises.map(e => ({ baseId: e.id, name: e.name, sets: null, target: e.sets, reps: e.reps }));
+  const list = active ? session.exercises : day.exercises.map(e => ({ baseId: e.id, name: e.name, sets: null, target: e.sets, reps: e.reps, rest: e.rest }));
 
   $('exercises').innerHTML = list.map((e, ei) => {
     const base = day.exercises.find(x => x.id === e.baseId);
@@ -128,7 +142,7 @@ function renderTreino() {
       <div class="flex justify-between items-start gap-2">
         <div class="min-w-0">
           <h3 class="font-bold text-base leading-tight">${esc(e.name)}</h3>
-          <p class="text-sm text-zinc-300 mt-0.5">${e.target}x ${esc(e.reps)}${swapped ? ` <span class="text-amber-400">• substituiu ${esc(base.name)}</span>` : ''}</p>
+          <p class="text-sm text-zinc-300 mt-0.5">${e.target}x ${esc(e.reps)}${(e.rest || base?.rest) ? ` <span class="text-zinc-500">• Descanso: ${esc(e.rest || base.rest)}</span>` : ''}${swapped ? ` <span class="text-amber-400">• substituiu ${esc(base.name)}</span>` : ''}</p>
           <span class="inline-block mt-1 text-xs font-bold px-2 py-1 rounded-full bg-zinc-800 ${last ? 'text-lime-300' : 'text-zinc-400'}">${badge}</span>
         </div>
         ${active ? `<button data-swap="${ei}" class="btn shrink-0 text-sm font-bold px-3 py-2 rounded-lg border border-amber-400 text-amber-400">Substituir</button>` : ''}
@@ -188,7 +202,7 @@ function startSession() {
   const day = state.routine[currentDay];
   session = {
     day: currentDay, start: Date.now(),
-    exercises: day.exercises.map(e => ({ baseId: e.id, name: e.name, target: e.sets, reps: e.reps, sets: makeSets(e.name, e.sets) }))
+    exercises: day.exercises.map(e => ({ baseId: e.id, name: e.name, target: e.sets, reps: e.reps, rest: e.rest, sets: makeSets(e.name, e.sets) }))
   };
   saveSession(); renderTreino(); tick();
 }
@@ -197,7 +211,7 @@ function startSession() {
 function openSwap(ei) {
   const e = session.exercises[ei];
   const base = state.routine[session.day].exercises.find(x => x.id === e.baseId);
-  const opts = [base.name, ...base.alternatives].filter(n => n !== e.name);
+  const opts = base ? [base.name, ...base.alternatives].filter(n => n !== e.name) : [];
   openModal(`<h3 class="text-xl font-bold mb-1">Substituir exercício</h3>
     <p class="text-sm text-zinc-400 mb-3">Atual: ${esc(e.name)} (vale só para esta sessão)</p>
     <div class="space-y-2 mb-3">${opts.map((o, i) => {
@@ -322,7 +336,10 @@ function mergeData(remote) {
   const ids = new Set(state.history.map(h => h.id));
   (remote.history || []).forEach(h => { if (!ids.has(h.id)) state.history.push(h); });
   histAsc();
-  if ((remote.updatedAt || 0) > (state.updatedAt || 0) && remote.routine) state.routine = remote.routine;
+  // só adota a rotina remota se for tão nova quanto a ficha local (evita reverter a ficha atualizada)
+  if ((remote.routineVersion || 1) >= (state.routineVersion || 1) && (remote.updatedAt || 0) > (state.updatedAt || 0) && remote.routine) {
+    state.routine = remote.routine; state.routineVersion = remote.routineVersion || 1;
+  }
 }
 async function gh(path, opts = {}) {
   const r = await fetch('https://api.github.com' + path, { ...opts, headers: {
@@ -348,7 +365,7 @@ async function sync() {
       }
     }
     save(false);
-    const body = { history: state.history, routine: state.routine, updatedAt: state.updatedAt };
+    const body = { history: state.history, routine: state.routine, routineVersion: state.routineVersion, updatedAt: state.updatedAt };
     const files = { [GIST_FILE]: { content: JSON.stringify(body) } };
     if (state.settings.gistId) await gh('/gists/' + state.settings.gistId, { method: 'PATCH', body: JSON.stringify({ files }) });
     else {

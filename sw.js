@@ -1,4 +1,4 @@
-const CACHE = 'gymsync-v1';
+const CACHE = 'gymsync-v2';
 const ASSETS = ['./', './index.html', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
