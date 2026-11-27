@@ -90,11 +90,22 @@
   <button data-tab="ajustes" class="navbtn py-4 font-bold text-sm">⚙️ Ajustes</button>
 </nav>
 
-<!-- MODAL -->
-<div id="modal" class="fixed inset-0 z-50 hidden bg-black/80 items-end sm:items-center justify-center">
-  <div id="modalBox" class="w-full max-w-md bg-zinc-950 border border-zinc-700 rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] overflow-y-auto"></div>
+<!-- TIMER DE DESCANSO (discreto, não bloqueia a tela) -->
+<div id="restBar" class="fixed inset-x-0 z-40 hidden px-3 pointer-events-none" style="bottom:calc(58px + env(safe-area-inset-bottom))">
+  <div class="pointer-events-auto max-w-xl mx-auto flex items-center gap-2 bg-zinc-900/95 border border-lime-400/60 rounded-xl px-3 py-2 shadow-lg">
+    <span class="text-xs font-bold uppercase text-zinc-400">Descanso</span>
+    <span id="restTime" class="flex-1 text-2xl font-mono font-extrabold tabular-nums text-lime-400">00:00</span>
+    <button id="rest15" class="btn px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-600 text-sm font-bold">+15s</button>
+    <button id="restSkip" class="btn px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-600 text-sm font-bold">Pular</button>
+  </div>
 </div>
 
+<!-- MODAL -->
+<div id="modal" class="fixed inset-0 z-50 hidden bg-black/80 items-end sm:items-center justify-center">
+  <div id="modalBox" class="w-full max-w-md bg-zinc-950 border border-zinc-700 rounded-t-2xl sm:rounded-2xl p-5 max-h-[88vh] overflow-y-auto"></div>
+</div>
+
+<script src="workouts.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

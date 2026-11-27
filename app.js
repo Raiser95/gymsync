@@ -6,36 +6,7 @@ const GIST_FILE = 'gymsync.json';
 const $ = id => document.getElementById(id);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-// Incremente ao alterar a ficha padrão: força a atualização da rotina salva no aparelho.
-const ROUTINE_VERSION = 2;
-const FAIL = '6-8 (Falha)';
-const ex = (name, sets, reps, rest, alternatives) => ({ id: uid(), name, sets, reps, rest, alternatives });
-function defaultRoutine() {
-  return {
-    A: { label: 'A', title: 'Peito e Tríceps', exercises: [
-      ex('Supino Inclinado na Máquina', 2, FAIL, '2min', ['Supino Inclinado com Halteres', 'Supino Reto na Máquina']),
-      ex('Crucifixo Unilateral na Polia', 2, FAIL, '90s', ['Peck Deck (Voador)', 'Cross Over Bilateral Polia Média']),
-      ex('Tríceps na Polia Alta (Barra Reta ou V)', 2, FAIL, '90s', ['Tríceps Máquina (Mergulho)', 'Tríceps Corda na Polia']),
-      ex('Tríceps Unilateral na Polia (Puxador D)', 2, FAIL, '90s', ['Tríceps Francês na Polia (Corda)', 'Tríceps Coice na Polia'])] },
-    B: { label: 'B', title: 'Costas e Bíceps', exercises: [
-      ex('Puxada Alta Pegada Neutra', 2, FAIL, '2min', ['Puxada Frontal Aberta', 'Pulldown na Polia Alta']),
-      ex('Remada Unilateral na Polia Baixa', 2, FAIL, '90s', ['Remada Máquina Unilateral', 'Remada Serrote com Halter']),
-      ex('Rosca Direta na Polia Baixa (Barra W ou Reta)', 2, FAIL, '90s', ['Rosca Scott na Máquina', 'Rosca Direta com Barra W']),
-      ex('Rosca Martelo na Polia (Corda)', 2, FAIL, '90s', ['Rosca Martelo com Halteres', 'Rosca Concentrada na Polia'])] },
-    C: { label: 'C', title: 'Pernas Completo', exercises: [
-      ex('Agachamento Livre', 4, '8-12', '2min', ['Agachamento Smith', 'Hack Squat']),
-      ex('Leg Press 45°', 4, '10-12', '2min', ['Leg Press Horizontal', 'Agachamento Sumô']),
-      ex('Cadeira Extensora', 3, '12-15', '90s', ['Extensora Unilateral', 'Sissy Squat']),
-      ex('Mesa Flexora', 3, '10-12', '90s', ['Cadeira Flexora', 'Stiff Halteres']),
-      ex('Panturrilha em Pé', 4, '12-20', '60s', ['Panturrilha Sentado', 'Panturrilha no Leg Press'])] },
-    D: { label: 'D', title: 'Ombros e Abdômen', exercises: [
-      ex('Desenvolvimento Halteres', 4, '8-12', '2min', ['Desenvolvimento Máquina', 'Desenvolvimento Barra']),
-      ex('Elevação Lateral', 4, '12-15', '60s', ['Elevação Lateral Polia', 'Elevação Lateral Máquina']),
-      ex('Elevação Frontal', 3, '10-12', '60s', ['Elevação Frontal Polia', 'Elevação Frontal Anilha']),
-      ex('Abdominal Supra', 3, '15-20', '60s', ['Abdominal Máquina', 'Abdominal Declinado']),
-      ex('Prancha', 3, '30-60s', '60s', ['Prancha Lateral', 'Elevação de Pernas'])] }
-  };
-}
+// Ficha padrão, tutoriais e SVGs: ver workouts.js (ROUTINE_VERSION, defaultRoutine, resolveExerciseInfo)
 let state = load();
 function load() {
   try {
@@ -52,7 +23,7 @@ function load() {
       }
       return d;
     }
-  } catch (e) {}
+  } catch (e) { }
   return { routine: defaultRoutine(), routineVersion: ROUTINE_VERSION, history: [], settings: { token: '', gistId: '' }, updatedAt: 0 };
 }
 function save(touch = true) {
@@ -75,6 +46,45 @@ const fmtDur = ms => {
   return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(n => String(n).padStart(2, '0')).join(':');
 };
 const fmtNum = n => (Math.round(n * 100) / 100).toLocaleString('pt-BR');
+
+/* ---------- Descanso ---------- */
+// 120 -> "2min", 150 -> "2min30", 90 -> "90s"
+const fmtRest = sec => sec >= 120 ? `${Math.floor(sec / 60)}min${sec % 60 ? String(sec % 60).padStart(2, '0') : ''}` : `${sec}s`;
+// aceita número (segundos) ou texto legado ("2min", "90s", "2min30")
+function parseRest(v) {
+  if (typeof v === 'number') return v;
+  const m = String(v || '').match(/^(?:(\d+)\s*min)?\s*(\d+)?\s*s?$/i);
+  if (!m || (!m[1] && !m[2])) return 0;
+  return m[1] ? (+m[1]) * 60 + (+m[2] || 0) : +m[2];
+}
+const restOf = (e, base) => e.restSeconds ?? (e.rest ? parseRest(e.rest) : (base?.restSeconds ?? 0));
+
+let restEnd = 0, restDone = false, restHideAt = 0;
+function startRest(sec) {
+  if (!sec) return;
+  restEnd = Date.now() + sec * 1000; restDone = false;
+  $('restBar').classList.remove('hidden'); renderRest();
+}
+function stopRest() { restEnd = 0; restDone = false; $('restBar').classList.add('hidden'); }
+function renderRest() {
+  if (!restEnd) return;
+  const left = Math.ceil((restEnd - Date.now()) / 1000);
+  const t = $('restTime');
+  if (left > 0) {
+    t.textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+    t.classList.remove('animate-pulse');
+  } else if (!restDone) {
+    restDone = true; restHideAt = Date.now() + 6000;
+    t.textContent = 'Pronto!'; t.classList.add('animate-pulse');
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // sem áudio: não interrompe a música
+  } else if (Date.now() > restHideAt) stopRest();
+}
+setInterval(renderRest, 500);
+$('rest15').onclick = () => {
+  if (!restEnd) return;
+  restEnd = Math.max(restEnd, Date.now()) + 15000; restDone = false; renderRest();
+};
+$('restSkip').onclick = stopRest;
 
 /** Última sessão que contém o exercício -> melhor série (maior carga). */
 function lastRecord(name) {
@@ -130,7 +140,9 @@ function renderTreino() {
   const day = state.routine[currentDay];
   $('dayTitle').textContent = `Treino ${currentDay} — ${day.title}`;
   const active = session && session.day === currentDay;
-  const list = active ? session.exercises : day.exercises.map(e => ({ baseId: e.id, name: e.name, sets: null, target: e.sets, reps: e.reps, rest: e.rest }));
+  const list = active ? session.exercises : day.exercises.map(e => ({ baseId: e.id, name: e.name, sets: null, target: e.sets, reps: e.reps, restSeconds: e.restSeconds }));
+  viewList = list;
+  if (!session) stopRest();
 
   $('exercises').innerHTML = list.map((e, ei) => {
     const base = day.exercises.find(x => x.id === e.baseId);
@@ -141,8 +153,11 @@ function renderTreino() {
     return `<div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
       <div class="flex justify-between items-start gap-2">
         <div class="min-w-0">
-          <h3 class="font-bold text-base leading-tight">${esc(e.name)}</h3>
-          <p class="text-sm text-zinc-300 mt-0.5">${e.target}x ${esc(e.reps)}${(e.rest || base?.rest) ? ` <span class="text-zinc-500">• Descanso: ${esc(e.rest || base.rest)}</span>` : ''}${swapped ? ` <span class="text-amber-400">• substituiu ${esc(base.name)}</span>` : ''}</p>
+          <div class="flex items-start gap-2">
+            <h3 class="font-bold text-base leading-tight">${esc(e.name)}</h3>
+            <button data-info="${ei}" aria-label="Como fazer" title="Como fazer" class="btn shrink-0 w-7 h-7 -mt-0.5 rounded-full border border-zinc-600 text-zinc-300 text-sm font-bold leading-none">ⓘ</button>
+          </div>
+          <p class="text-sm text-zinc-300 mt-0.5">${e.target}x ${esc(e.reps)}${restOf(e, base) ? ` <span class="text-zinc-500">• Descanso: ${fmtRest(restOf(e, base))}</span>` : ''}${swapped ? ` <span class="text-amber-400">• substituiu ${esc(base.name)}</span>` : ''}</p>
           <span class="inline-block mt-1 text-xs font-bold px-2 py-1 rounded-full bg-zinc-800 ${last ? 'text-lime-300' : 'text-zinc-400'}">${badge}</span>
         </div>
         ${active ? `<button data-swap="${ei}" class="btn shrink-0 text-sm font-bold px-3 py-2 rounded-lg border border-amber-400 text-amber-400">Substituir</button>` : ''}
@@ -173,12 +188,14 @@ function setRow(ei, si, s, active) {
 
 // delegação de eventos
 $('exercises').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b || !session) return;
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.info !== undefined) return openInfo(+b.dataset.info);
+  if (!session) return;
   if (b.dataset.swap !== undefined) return openSwap(+b.dataset.swap);
   if (b.dataset.step) {
     const s = session.exercises[+b.dataset.e].sets[+b.dataset.s];
     const k = b.dataset.step, dir = +b.dataset.dir;
-    s[k] = Math.max(0, +(( s[k] || 0) + dir * (k === 'w' ? 2.5 : 1)).toFixed(2));
+    s[k] = Math.max(0, +((s[k] || 0) + dir * (k === 'w' ? 2.5 : 1)).toFixed(2));
     saveSession(); renderTreino();
   }
 });
@@ -186,9 +203,41 @@ $('exercises').addEventListener('change', e => {
   const t = e.target; if (!session) return;
   const s = session.exercises[+t.dataset.e]?.sets[+t.dataset.s]; if (!s) return;
   if (t.dataset.in) s[t.dataset.in] = Math.max(0, parseFloat(String(t.value).replace(',', '.')) || 0);
-  if (t.dataset.done) s.done = t.checked;
+  if (t.dataset.done) {
+    s.done = t.checked;
+    if (s.done) { // inicia o descanso, exceto se foi a última série da sessão
+      const allDone = session.exercises.every(x => x.sets.every(y => y.done));
+      if (allDone) stopRest();
+      else {
+        const ex = session.exercises[+t.dataset.e];
+        startRest(restOf(ex, state.routine[session.day]?.exercises.find(x => x.id === ex.baseId)));
+      }
+    }
+  }
   saveSession(); renderTreino();
 });
+
+/* ---------- Como fazer (tutorial + ilustração) ---------- */
+let viewList = [];
+function openInfo(ei) {
+  const it = viewList[ei]; if (!it) return;
+  const base = state.routine[currentDay]?.exercises.find(x => x.id === it.baseId);
+  const info = resolveExerciseInfo(it.name, base);
+  const block = (icon, label, color, text) => `<div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+    <p class="text-xs font-extrabold uppercase tracking-wide ${color} mb-1">${icon} ${label}</p>
+    <p class="text-sm text-zinc-200 leading-relaxed">${esc(text)}</p></div>`;
+  openModal(`<div class="flex items-start justify-between gap-2 mb-3">
+      <h3 class="text-lg font-extrabold leading-tight">${esc(info.title)}</h3>
+      <button class="btn shrink-0 w-9 h-9 rounded-full bg-zinc-800 font-bold" onclick="closeModal()" aria-label="Fechar">✕</button></div>
+    ${info.svg}
+    ${info.note ? `<p class="text-xs text-amber-300 mt-2">${esc(info.note)}</p>` : ''}
+    <div class="mt-3 space-y-2">
+      ${block('🧍', 'Posição inicial', 'text-lime-400', info.pos)}
+      ${block('🔁', 'Execução', 'text-sky-400', info.exec)}
+      ${block('⚠️', 'Dica de falha / segurança', 'text-amber-400', info.tip)}
+    </div>
+    <button class="btn w-full mt-3 py-3 rounded-xl bg-lime-400 text-black font-extrabold" onclick="closeModal()">Entendi</button>`);
+}
 
 $('sessionBtn').onclick = () => session ? confirmFinish() : startSession();
 $('cancelBtn').onclick = () => {
@@ -202,7 +251,7 @@ function startSession() {
   const day = state.routine[currentDay];
   session = {
     day: currentDay, start: Date.now(),
-    exercises: day.exercises.map(e => ({ baseId: e.id, name: e.name, target: e.sets, reps: e.reps, rest: e.rest, sets: makeSets(e.name, e.sets) }))
+    exercises: day.exercises.map(e => ({ baseId: e.id, name: e.name, target: e.sets, reps: e.reps, restSeconds: e.restSeconds, sets: makeSets(e.name, e.sets) }))
   };
   saveSession(); renderTreino(); tick();
 }
@@ -215,12 +264,12 @@ function openSwap(ei) {
   openModal(`<h3 class="text-xl font-bold mb-1">Substituir exercício</h3>
     <p class="text-sm text-zinc-400 mb-3">Atual: ${esc(e.name)} (vale só para esta sessão)</p>
     <div class="space-y-2 mb-3">${opts.map((o, i) => {
-      const l = lastRecord(o);
-      return `<label class="flex items-center gap-3 p-3 rounded-xl border border-zinc-700 bg-zinc-900">
+    const l = lastRecord(o);
+    return `<label class="flex items-center gap-3 p-3 rounded-xl border border-zinc-700 bg-zinc-900">
         <input type="radio" name="alt" value="${esc(o)}" ${i === 0 ? 'checked' : ''} class="accent-lime-400 w-5 h-5">
         <span class="flex-1 font-semibold">${esc(o)}</span>
         <span class="text-xs text-zinc-400">${l ? fmtNum(l.w) + 'kg x ' + l.r : ''}</span></label>`;
-    }).join('')}
+  }).join('')}
       <label class="flex items-center gap-3 p-3 rounded-xl border border-zinc-700 bg-zinc-900">
         <input type="radio" name="alt" value="__custom" class="accent-lime-400 w-5 h-5">
         <input id="customEx" placeholder="Digitar outro exercício" class="flex-1 min-w-0 bg-black border border-zinc-700 rounded-lg p-2" oninput="document.querySelector('input[value=__custom]').checked=true"></label>
@@ -307,8 +356,10 @@ function renderProgress() {
   const name = $('exSelect').value;
   const pts = sortedHistory().map(h => {
     const e = h.exercises.find(x => x.name === name); if (!e) return null;
-    return { date: new Date(h.start).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      max: Math.max(...e.sets.map(s => s.w)), vol: e.sets.reduce((a, s) => a + s.w * s.r, 0) };
+    return {
+      date: new Date(h.start).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      max: Math.max(...e.sets.map(s => s.w)), vol: e.sets.reduce((a, s) => a + s.w * s.r, 0)
+    };
   }).filter(Boolean);
   $('prLoad').textContent = fmtNum(Math.max(...pts.map(p => p.max))) + ' kg';
   $('prVol').textContent = fmtNum(Math.max(...pts.map(p => p.vol))) + ' kg';
@@ -318,14 +369,20 @@ function renderProgress() {
   const grid = { color: '#27272a' }, tick = { color: '#d4d4d8' };
   chart = new Chart($('chart'), {
     type: 'line',
-    data: { labels: pts.map(p => p.date), datasets: [
-      { label: 'Carga máx (kg)', data: pts.map(p => p.max), borderColor: '#a3e635', backgroundColor: '#a3e635', yAxisID: 'y', tension: .25, pointRadius: 4 },
-      { label: 'Volume (kg)', data: pts.map(p => p.vol), borderColor: '#fbbf24', backgroundColor: '#fbbf24', yAxisID: 'y1', tension: .25, pointRadius: 4 }] },
-    options: { responsive: true, interaction: { mode: 'index', intersect: false },
+    data: {
+      labels: pts.map(p => p.date), datasets: [
+        { label: 'Carga máx (kg)', data: pts.map(p => p.max), borderColor: '#a3e635', backgroundColor: '#a3e635', yAxisID: 'y', tension: .25, pointRadius: 4 },
+        { label: 'Volume (kg)', data: pts.map(p => p.vol), borderColor: '#fbbf24', backgroundColor: '#fbbf24', yAxisID: 'y1', tension: .25, pointRadius: 4 }]
+    },
+    options: {
+      responsive: true, interaction: { mode: 'index', intersect: false },
       plugins: { legend: { labels: { color: '#fff' } } },
-      scales: { x: { ticks: tick, grid },
+      scales: {
+        x: { ticks: tick, grid },
         y: { position: 'left', ticks: tick, grid, title: { display: true, text: 'Carga', color: '#a3e635' } },
-        y1: { position: 'right', ticks: tick, grid: { drawOnChartArea: false }, title: { display: true, text: 'Volume', color: '#fbbf24' } } } }
+        y1: { position: 'right', ticks: tick, grid: { drawOnChartArea: false }, title: { display: true, text: 'Volume', color: '#fbbf24' } }
+      }
+    }
   });
 }
 $('exSelect').onchange = renderProgress;
@@ -342,9 +399,12 @@ function mergeData(remote) {
   }
 }
 async function gh(path, opts = {}) {
-  const r = await fetch('https://api.github.com' + path, { ...opts, headers: {
-    Authorization: 'Bearer ' + state.settings.token, Accept: 'application/vnd.github+json',
-    'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  const r = await fetch('https://api.github.com' + path, {
+    ...opts, headers: {
+      Authorization: 'Bearer ' + state.settings.token, Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json', ...(opts.headers || {})
+    }
+  });
   if (!r.ok) throw new Error(r.status === 401 ? 'Token inválido (401)' : r.status === 404 ? 'Gist não encontrado (404)' : 'Erro ' + r.status);
   return r.json();
 }
@@ -403,7 +463,7 @@ window.addEventListener('online', () => setStatus('Online'));
 window.addEventListener('offline', () => setStatus('Offline'));
 
 /* ================= INIT ================= */
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
 setStatus(navigator.onLine ? 'Online' : 'Offline');
 renderTreino(); tick(); showTab('treino');
 if (state.settings.token && state.settings.gistId && !session) sync(); // puxa dados ao abrir

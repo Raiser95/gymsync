@@ -1,5 +1,5 @@
-const CACHE = 'gymsync-v2';
-const ASSETS = ['./', './index.html', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'gymsync-v3';
+const ASSETS = ['./', './index.html', './app.js', './workouts.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -14,16 +14,16 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || req.url.includes('api.github.com')) return;
-  e.respondWith(
-    caches.match(req).then(cached => {
-      const net = fetch(req).then(res => {
-        if (res && (res.ok || res.type === 'opaque')) {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => cached || caches.match('./index.html'));
-      return cached || net;
-    })
-  );
+  const sameOrigin = new URL(req.url).origin === self.location.origin;
+  const store = res => {
+    if (res && (res.ok || res.type === 'opaque')) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+    return res;
+  };
+  if (sameOrigin) {
+    // Arquivos do app: rede primeiro (pega a ficha nova assim que há internet), cache como fallback offline
+    e.respondWith(fetch(req, { cache: 'no-cache' }).then(store).catch(() => caches.match(req).then(c => c || caches.match('./index.html'))));
+  } else {
+    // CDNs (Tailwind/Chart.js): cache primeiro
+    e.respondWith(caches.match(req).then(c => c || fetch(req).then(store)));
+  }
 });
